@@ -1,36 +1,35 @@
 import { useState } from 'react';
-import { searchArtworks, searchArtists } from '../api/artic.js';
+import { searchArtworks, searchArtists, searchCategory } from '../api/artic.js';
+import SearchForm from '../components/SearchForm.jsx';
+import ArtworkGrid from '../components/artworks/ArtworkGrid.jsx';
+import ArtistGrid from '../components/artists/ArtistGrid.jsx';
+import { useQuery } from '@tanstack/react-query';
 
 const Home = () => {
-  const [searchStr, setSearchStr] = useState('');
-  const [apiData, setApiData] = useState(null);
-  const [apiDataError, setApiDataError] = useState(null);
-  const [searchOption, setSearchOption] = useState('artworks');
-
-  const onSearchInputChange = ev => {
-    setSearchStr(ev.target.value);
-  };
-
-  const onRadioChange = ev => {
-    setSearchOption(ev.target.value);
-  };
-
-  const onSearch = async ev => {
-    ev.preventDefault();
-
-    try {
-      setApiDataError(null);
-
-      if (searchOption === 'artworks') {
-        const result = await searchArtworks(searchStr);
-        setApiData(result.data);
+  const [filter, setFilter] = useState(null);
+  const { data: result, error } = useQuery({
+    queryKey: ['search', filter],
+    queryFn: () => {
+      let result;
+      if (filter.searchOption === 'artists') {
+        result = searchArtists(filter.q);
+      } else if (filter.searchOption === 'categories') {
+        result = searchCategory(filter.q);
       } else {
-        const result = await searchArtists(searchStr);
-        setApiData(result.data);
+        result = searchArtworks(filter.q);
       }
-    } catch (error) {
-      setApiDataError(error);
-    }
+      return result;
+    },
+    enabled: !!filter,
+    refetchOnWindowFocus: false,
+  });
+
+  const apiDataError = error?.message;
+  const apiData = result?.data;
+  const gridType = filter?.searchOption;
+
+  const onSearch = async ({ q, searchOption }) => {
+    setFilter({ q, searchOption });
   };
 
   const renderApiData = () => {
@@ -39,16 +38,8 @@ const Home = () => {
     }
 
     if (apiData) {
-      return apiData.map(data => (
-        <div key={data.id}>
-          <b>{data.title}</b> by{' '}
-          {searchOption === 'artworks' ? data.artist_title : ''} -{' '}
-          {searchOption === 'artworks' ? data.style_title : ''} -{' '}
-          {searchOption === 'artworks' ? data.category_titles : ''} -{' '}
-          {searchOption === 'artworks' ? data.term_titles : ''} -{' '}
-          <b>{data.id}</b>
-        </div>
-      ));
+      if (gridType === 'artists') return <ArtistGrid artists={apiData} />;
+      else return <ArtworkGrid artworks={apiData} />;
     }
 
     return null;
@@ -56,30 +47,7 @@ const Home = () => {
 
   return (
     <div>
-      <form onSubmit={onSearch}>
-        <input type="text" value={searchStr} onChange={onSearchInputChange} />
-        <label>
-          Artworks
-          <input
-            type="radio"
-            name="search-option"
-            value="artworks"
-            checked={searchOption === 'artworks'}
-            onChange={onRadioChange}
-          />
-        </label>
-        <label>
-          Artists
-          <input
-            type="radio"
-            name="search-option"
-            value="artists"
-            checked={searchOption === 'artists'}
-            onChange={onRadioChange}
-          />
-        </label>
-        <button type="submit">Search</button>
-      </form>
+      <SearchForm onSearch={onSearch} />
       <div>{renderApiData()}</div>
     </div>
   );
