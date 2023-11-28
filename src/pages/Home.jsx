@@ -1,22 +1,29 @@
-import { useState } from 'react';
 import { searchArtworks, searchArtists, searchCategory } from '../api/artic.js';
 import SearchForm from '../components/SearchForm.jsx';
 import ArtworkGrid from '../components/artworks/ArtworkGrid.jsx';
 import ArtistGrid from '../components/artists/ArtistGrid.jsx';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 
 const Home = () => {
-  const [filter, setFilter] = useState(null);
+  const [filter, setFilter] = useSearchParams({
+    q: '',
+    searchOption: 'artworks',
+  }); //const [filter, setFilter] = useState(null);
+
+  const q = filter.get('q');
+  const searchOption = filter.get('searchOption');
+
   const { data: result, error } = useQuery({
-    queryKey: ['search', filter],
+    queryKey: ['search', { q, searchOption }],
     queryFn: () => {
       let result;
-      if (filter.searchOption === 'artists') {
-        result = searchArtists(filter.q);
-      } else if (filter.searchOption === 'categories') {
-        result = searchCategory(filter.q);
+      if (searchOption === 'artists') {
+        result = searchArtists(q);
+      } else if (searchOption === 'categories') {
+        result = searchCategory(q);
       } else {
-        result = searchArtworks(filter.q);
+        result = searchArtworks(q);
       }
       return result;
     },
@@ -26,7 +33,6 @@ const Home = () => {
 
   const apiDataError = error?.message;
   const apiData = result?.data;
-  const gridType = filter?.searchOption;
 
   const onSearch = async ({ q, searchOption }) => {
     setFilter({ q, searchOption });
@@ -38,7 +44,7 @@ const Home = () => {
     }
 
     if (apiData) {
-      if (gridType === 'artists') return <ArtistGrid artists={apiData} />;
+      if (searchOption === 'artists') return <ArtistGrid artists={apiData} />;
       else return <ArtworkGrid artworks={apiData} />;
     }
 
